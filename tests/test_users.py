@@ -68,7 +68,7 @@ def test_get_users_success(base_url, headers, session):
 
     assert "@" in user0["email"]    
 '''
-
+'''
 import pytest
 
 @pytest.mark.parametrize("page",[1,2])
@@ -100,4 +100,62 @@ def test_get_users_success(base_url, headers,session, page):
         assert k in user0
         
     assert "@" in user0["email"]
+'''
+
+import pytest
+
+@pytest.mark.parametrize("page",[1, 2])
+def test_get_users_success(base_url, headers, session, page):
+    url = f"{base_url}/api/users" 
+    resp = session.get(
+        url,
+        params={"page": page},
+        headers=headers,
+        timeout=10,
+    )
+    
+    assert resp.status_code == 200
+    
+    content_type = resp.headers.get("Content-Type","")
+    assert "application/json" in content_type
+    
+    body = resp.json()
+    assert "data" in body
+    assert isinstance(body["data"],list)
+    assert len(body["data"]) > 0
+    
+    for k in ["page", "per_page", "total", "total_pages"]:
+        assert k in body
+    
+    user0 = body["data"][0]
+    for k in ["id", "email", "first_name", "last_name", "avatar"]:
+        assert k in user0
+    
+    assert "@" in user0["email"]
+    
+ 
+def test_get_single_user_not_found(base_url, headers, session):
+    url = f"{base_url}/api/users/23"
+    resp = session.get(
+        url,
+        headers=headers,
+        timeout=10,
+    )
+    
+    assert resp.status_code == 404
+    assert resp.text == "" or resp.text is not None
+
+def test_get_unknown_resource_not_found(base_url, headers, session):
+    url = f"{base_url}/api/unknown/23"
+    resp = session.get(
+        url,
+        headers=headers,
+        timeout=10,
+    )
+    
+    assert resp.status_code == 404
+    assert resp.text == "" or resp.text is not None
+
+    
+
     
