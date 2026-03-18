@@ -12,6 +12,12 @@ with open(data_file, "r", encoding="utf-8") as f:
 pages = users_test_data["pages"]
 
 
+create_user_file = Path(__file__).parent.parent / "data" / "create_user.json"
+
+with open(create_user_file, "r", encoding="utf-8") as f:
+    create_user_payload = json.load(f)
+
+
 @pytest.mark.parametrize("page", pages)
 def test_get_users_success(client, page):
     resp = client.get("/api/users", params={"page": page})
@@ -44,3 +50,20 @@ def test_get_single_user_not_found(client):
 def test_get_unknown_resource_not_found(client):
     resp = client.get("/api/unknown/23")
     assert resp.status_code == 404
+
+
+def test_create_user_success(client):
+    resp = client.post("/api/users", json=create_user_payload)
+
+    assert resp.status_code == 201
+
+    content_type = resp.headers.get("Content-Type", "")
+    assert "application/json" in content_type
+
+    body = resp.json()
+
+    assert body["name"] == create_user_payload["name"]
+    assert body["job"] == create_user_payload["job"]
+
+    assert "id" in body
+    assert "createdAt" in body
