@@ -21,6 +21,10 @@ pages = users_test_data["pages"]
 create_user_file = Path(__file__).parent.parent / "data" / "create_user.json"
 with open(create_user_file, "r", encoding="utf-8") as f:
     create_user_payload = json.load(f)
+    
+create_user_missing_job_file = Path(__file__).parent.parent / "data" / "created_user_missing_job.json"
+with open(create_user_missing_job_file, "r", encoding="utf-8") as f:
+    create_user_missing_job_payload = json.load(f)
         
 '''    
 login_file = Path(__file__).parent.parent / "data" / "login.json"
@@ -44,7 +48,7 @@ def test_get_users_success(client, page):
     assert_json_content_type(resp)
 
     body = resp.json()
-    assert_required_keys(body, ["page", "per_page", "total", "total_pages", "data"])
+    assert_required_keys(body, ["page", "per_page", "total", "total_pages", "data", "support"])
     
     assert body["page"] == page
     assert_positive_int(body["per_page"], "per_page")
@@ -55,6 +59,11 @@ def test_get_users_success(client, page):
     assert len(body["data"]) > 0
     assert len(body["data"]) <= body["per_page"]
     assert body["total_pages"] >= page
+    
+    support = body["support"]
+    assert_required_keys(support, ["url", "text"])
+    assert_non_empty_string(support["url"], "support.url")
+    assert_non_empty_string(support["text"], "support.text")
 
     for user in body["data"]:
         assert_required_keys(
@@ -71,9 +80,37 @@ def test_get_users_success(client, page):
         assert user["avatar"].startswith("http")
 
 @pytest.mark.regression
+def test_get_single_user_success(client):
+    resp = client.get("/api/users/2")
+
+    assert_status_code(resp, 200)
+    assert_json_content_type(resp)
+
+    body = resp.json()
+    assert_required_keys(body, ["data", "support"])
+
+    user = body["data"]
+    assert_required_keys(
+        user,
+        ["id", "email", "first_name", "last_name", "avatar"]
+    )
+
+    assert_positive_int(user["id"], "id")
+    assert_non_empty_string(user["email"], "email")
+    assert_non_empty_string(user["first_name"], "first_name")
+    assert_non_empty_string(user["last_name"], "last_name")
+    assert_non_empty_string(user["avatar"], "avatar")
+
+    assert user["id"] == 2
+    assert "@" in user["email"]
+    assert user["avatar"].startswith("http")
+
+@pytest.mark.regression
 def test_get_single_user_not_found(client):
     resp = client.get("/api/users/23")
     assert resp.status_code == 404
+    assert_json_content_type(resp)
+    assert resp.json() == {}
 
 @pytest.mark.regression
 def test_get_unknown_resource_not_found(client):
@@ -95,6 +132,20 @@ def test_create_user_success(client):
     assert_non_empty_string(body["id"], "id")
     assert_non_empty_string(body["createdAt"], "createdAt")
     assert "T" in body["createdAt"]
+    
+@pytest.mark.regression
+def test_create_user_missing_job(client):
+    resp = client.post("/api/users", json=create_user_missing_job_payload)
+
+    assert_status_code(resp, 201)
+    assert_json_content_type(resp)
+
+    body = resp.json()
+    assert_required_keys(body, ["name", "id", "createdAt"])
+
+    assert body["name"] == create_user_missing_job_payload["name"]
+    assert_non_empty_string(body["id"], "id")
+    assert_non_empty_string(body["createdAt"], "createdAt")
     
 '''    
 def test_login_success(client):
